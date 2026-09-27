@@ -1,0 +1,38 @@
+# General
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# Node
+node_modules/
+dist/
+build/
+
+# Java / Gradle
+.gradle/
+build/
+out/
+target/
+*.class
+*.jar
+
+# Docker
+docker/*.log
+docker-compose.override.yml
+
+# IDE / OS
+*.iml
+*.swp
+
+# Coverage
+coverage/
+
+# Misc
+*.keystore

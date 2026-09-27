@@ -1,0 +1,14 @@
+# Ignore local build artifacts
+node_modules/
+target/
+build/
+.gradle/
+
+# Git
+.git
+
+# Environment
+.env
+
+# Logs
+*.log
