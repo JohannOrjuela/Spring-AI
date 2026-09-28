@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Simple pre-commit hook to prevent accidental commit of .env or files containing 'API_KEY'
+if git diff --cached --name-only | grep -E "(^|/)\.env$|API_KEY|MODEL_API_KEY"; then
+  echo "Potential secret files or keys staged for commit. Please remove them before committing." >&2
+  exit 1
+fi
+exit 0

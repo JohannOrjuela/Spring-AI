@@ -1,0 +1,7 @@
+.chat { max-width: 700px; margin: 1rem auto; }
+.messages { border: 1px solid #ddd; padding: 1rem; min-height: 200px; }
+.message.user { text-align: right; color: #111; }
+.message.bot { text-align: left; color: #007acc; }
+.controls { display:flex; gap:0.5rem; margin-top:0.5rem; }
+.controls input { flex:1; padding:0.5rem; }
+.controls button { padding:0.5rem 1rem; }
