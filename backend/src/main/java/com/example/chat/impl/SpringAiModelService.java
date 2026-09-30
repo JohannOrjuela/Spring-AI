@@ -4,6 +4,8 @@ import com.example.chat.ModelService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.stereotype.Service;
 
 /**
@@ -33,21 +35,40 @@ public class SpringAiModelService implements ModelService {
     }
 
     @Override
-    public String generateResponse(String question, String sessionId) {
-        log.debug("Enviando prompt al modelo. sessionId={} longitud={}", sessionId, question.length());
+    public ModelResponse generateResponse(String question, String sessionId) {
+        log.debug("Enviando prompt al modelo");
 
-        String answer = chatClient.prompt()
+        org.springframework.ai.chat.model.ChatResponse response = chatClient.prompt()
                 .user(question)
                 .call()
-                .content();
+                .chatResponse();
 
-        if (answer == null || answer.isBlank()) {
-            // El ChatController traduce una respuesta en blanco a HTTP 502 + status "error".
-            log.warn("El modelo devolvio una respuesta vacia. sessionId={}", sessionId);
-            return "";
+        if (response == null) {
+            log.warn("El modelo no devolvio metadatos de respuesta");
+            return new ModelResponse("", null, null, null, null, null);
         }
 
-        log.debug("Respuesta recibida. sessionId={} longitud={}", sessionId, answer.length());
-        return answer;
+        ChatResponseMetadata metadata = response.getMetadata();
+        Usage usage = metadata == null ? null : metadata.getUsage();
+        var result = response.getResult();
+        String answer = result == null || result.getOutput() == null ? "" : result.getOutput().getText();
+        String finishReason = result == null || result.getMetadata() == null
+                ? null
+                : result.getMetadata().getFinishReason();
+        String model = metadata == null || metadata.getModel() == null || metadata.getModel().isBlank()
+                ? null
+                : metadata.getModel();
+
+        if (answer == null || answer.isBlank()) {
+            log.warn("El modelo devolvio una respuesta vacia");
+        }
+
+        return new ModelResponse(
+                answer == null ? "" : answer,
+                usage == null ? null : usage.getPromptTokens(),
+                usage == null ? null : usage.getCompletionTokens(),
+                usage == null ? null : usage.getTotalTokens(),
+                model,
+                finishReason);
     }
 }

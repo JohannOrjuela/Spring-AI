@@ -2,6 +2,10 @@
 .messages { border: 1px solid #ddd; padding: 1rem; min-height: 200px; }
 .message.user { text-align: right; color: #111; }
 .message.bot { text-align: left; color: #007acc; }
+.response-contract { display: grid; gap: 0.25rem; margin-top: 0.75rem; padding: 0.65rem; border-left: 3px solid #007acc; background: #f6f8fa; color: #555; font-size: 0.78rem; }
+.metadata-row { display: grid; grid-template-columns: minmax(120px, 0.35fr) 1fr; gap: 0.75rem; }
+.metadata-row span { color: #666; }
+.metadata-row code { overflow-wrap: anywhere; color: #222; }
 .controls { display:flex; gap:0.5rem; margin-top:0.5rem; }
 .controls input { flex:1; padding:0.5rem; }
 .controls button { padding:0.5rem 1rem; }

@@ -16,8 +16,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+      - name: Run backend tests
+        run: gradle -p backend test --no-daemon
       - name: Start services
-        run: | 
+        run: |
           docker compose -f docker/docker-compose.yml up -d --build || true
       - name: Wait and run smoke test
         run: |

@@ -128,6 +128,24 @@
   }
   .stamp b { font-weight: 600; color: var(--ink); }
 
+  .contract {
+    display: grid;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--ok);
+    background: #F3F6F3;
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+  .contract-row {
+    display: grid;
+    grid-template-columns: minmax(125px, 0.35fr) 1fr;
+    gap: 10px;
+  }
+  .contract-key { color: var(--muted); }
+  .contract-value { color: var(--ink); overflow-wrap: anywhere; }
+
   /* ---- Composición ---- */
   .composer { display: flex; gap: 8px; }
   .composer input {
@@ -220,7 +238,7 @@
 
   /* ---------- Render ---------- */
 
-  function addTurn(who, label, text, stamp) {
+  function addTurn(who, label, text, stamp, contract) {
     $empty?.remove();
 
     const turn = document.createElement("div");
@@ -242,6 +260,27 @@
       s.className = "stamp";
       s.innerHTML = stamp;            // solo cadenas construidas aquí, sin datos del modelo
       turn.append(s);
+    }
+
+    if (contract) {
+      const panel = document.createElement("div");
+      panel.className = "contract";
+      ["requestId", "answer", "elapsedMs", "status", "promptTokens", "completionTokens",
+        "totalTokens", "model", "finishReason", "tokensPerSecond"].forEach((key) => {
+        const row = document.createElement("div");
+        row.className = "contract-row";
+        const name = document.createElement("span");
+        name.className = "contract-key";
+        name.textContent = key;
+        const value = document.createElement("code");
+        value.className = "contract-value";
+        value.textContent = contract[key] === null || contract[key] === undefined
+          ? "null"
+          : String(contract[key]);
+        row.append(name, value);
+        panel.append(row);
+      });
+      turn.append(panel);
     }
 
     $transcript.append(turn);
@@ -302,7 +341,7 @@
       if (!res.ok) {
         addTurn("fault", "error", `El backend respondió HTTP ${res.status}.` +
           (data?.status ? ` status=${data.status}` : "") +
-          " Revisa los logs del contenedor pruebachat_backend.");
+          " Revisa los logs del contenedor pruebachat_backend.", null, data);
         return;
       }
 
@@ -312,12 +351,12 @@
       if (data?.status !== "ok" || answer.trim() === "") {
         addTurn("fault", "respuesta vacía",
           "El backend contestó correctamente pero sin texto. Suele significar que el modelo " +
-          "no está descargado en Ollama o que agotó el presupuesto de tokens.");
+          "no está descargado en Ollama o que agotó el presupuesto de tokens.", null, data);
         return;
       }
 
       addTurn("bot", "modelo", answer,
-        `<b>${data.elapsedMs} ms</b> en el modelo · ${roundTrip} ms total · ${data.requestId}`);
+        `<b>${data.elapsedMs} ms</b> en el modelo · ${roundTrip} ms total · ${data.requestId}`, data);
 
     } catch (err) {
       const msg = err?.name === "TimeoutError"

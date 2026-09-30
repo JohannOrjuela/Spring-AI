@@ -2,7 +2,18 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-interface ChatResponse { requestId: string; answer: string; elapsedMs: number; status: string }
+export interface ChatResponse {
+  requestId: string;
+  answer: string;
+  elapsedMs: number;
+  status: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  model: string | null;
+  finishReason: string | null;
+  tokensPerSecond: number | null;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
