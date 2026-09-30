@@ -12,7 +12,16 @@ if [ -z "$RESPONSE" ]; then
   exit 2
 fi
 
-# Basic check for non-empty answer field
-echo "$RESPONSE" | grep -q "answer" || { echo "Response missing 'answer' field"; exit 3; }
+command -v jq >/dev/null 2>&1 || { echo "jq is required to validate the chat response"; exit 3; }
+
+echo "$RESPONSE" | jq -e '
+  (.answer | type == "string" and length > 0)
+  and (.status == "ok")
+  and (has("requestId") and has("elapsedMs"))
+  and (has("promptTokens") and has("completionTokens") and has("totalTokens")
+    and has("model") and has("finishReason") and has("tokensPerSecond"))
+  and ([.promptTokens, .completionTokens, .totalTokens, .model, .finishReason, .tokensPerSecond]
+    | all(. == null or (. | type == "number" or type == "string")))
+' >/dev/null || { echo "Response does not match the token metrics contract"; exit 4; }
 
 echo "Smoke test passed"

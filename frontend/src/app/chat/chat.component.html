@@ -2,6 +2,38 @@
   <div class="messages">
     <div *ngFor="let m of messages" class="message" [ngClass]="m.from">
       <strong>{{m.from}}:</strong> {{m.text}}
+      <div *ngIf="m.response" class="response-contract" aria-label="Chat response metadata">
+        <div class="metadata-row">
+          <span>requestId</span><code>{{m.response?.requestId}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>answer</span><code>{{m.response?.answer}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>elapsedMs</span><code>{{displayValue(m.response?.elapsedMs)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>status</span><code>{{m.response?.status}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>promptTokens</span><code>{{displayValue(m.response?.promptTokens)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>completionTokens</span><code>{{displayValue(m.response?.completionTokens)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>totalTokens</span><code>{{displayValue(m.response?.totalTokens)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>model</span><code>{{displayValue(m.response?.model)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>finishReason</span><code>{{displayValue(m.response?.finishReason)}}</code>
+        </div>
+        <div class="metadata-row">
+          <span>tokensPerSecond</span><code>{{displayValue(m.response?.tokensPerSecond)}}</code>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -17,14 +17,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpClientErrorException.class)
     public ResponseEntity<ChatResponse> handleHttpClient(HttpClientErrorException ex) {
         log.error("HTTP client error when calling model", ex);
-        ChatResponse resp = new ChatResponse(null, "", 0, "error");
+        ChatResponse resp = new ChatResponse(null, "", 0, "error", null, null, null, null, null, null);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(resp);
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ChatResponse> handleRuntime(RuntimeException ex) {
         log.error("Runtime exception in chat service", ex);
-        ChatResponse resp = new ChatResponse(null, "", 0, "error");
+        ChatResponse resp = new ChatResponse(null, "", 0, "error", null, null, null, null, null, null);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(resp);
     }
 }

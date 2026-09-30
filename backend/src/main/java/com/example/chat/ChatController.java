@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @RestController
@@ -33,19 +32,41 @@ public class ChatController {
         if (bindingResult.hasErrors()) {
             String err = bindingResult.getAllErrors().toString();
             log.warn("Validation failed for chat request: {}", err);
-            ChatResponse bad = new ChatResponse(UUID.randomUUID().toString(), "", 0, "error");
+            ChatResponse bad = new ChatResponse(UUID.randomUUID().toString(), "", 0, "error",
+                    null, null, null, null, null, null);
             return ResponseEntity.badRequest().body(bad);
         }
 
-        log.info("Received chat request sessionId={} question={}", req.getSessionId(), req.getQuestion());
-        long start = Instant.now().toEpochMilli();
-        String answer = modelService.generateResponse(req.getQuestion(), req.getSessionId());
-        long elapsed = Instant.now().toEpochMilli() - start;
+        long start = System.nanoTime();
+        ModelService.ModelResponse modelResponse = modelService.generateResponse(req.getQuestion(), req.getSessionId());
+        long elapsed = Math.max(0, (System.nanoTime() - start) / 1_000_000);
 
+        String answer = modelResponse == null || modelResponse.answer() == null ? "" : modelResponse.answer();
         String status = (answer == null || answer.isBlank()) ? "error" : "ok";
-        ChatResponse resp = new ChatResponse(UUID.randomUUID().toString(), answer == null ? "" : answer, elapsed, status);
+        Double tokensPerSecond = calculateTokensPerSecond(modelResponse, elapsed);
+        ChatResponse resp = new ChatResponse(
+                UUID.randomUUID().toString(),
+                answer,
+                elapsed,
+                status,
+                modelResponse == null ? null : modelResponse.promptTokens(),
+                modelResponse == null ? null : modelResponse.completionTokens(),
+                modelResponse == null ? null : modelResponse.totalTokens(),
+                modelResponse == null ? null : modelResponse.model(),
+                modelResponse == null ? null : modelResponse.finishReason(),
+                tokensPerSecond);
 
-        log.info("Chat response for sessionId={} elapsedMs={} status={} response={}", req.getSessionId(), elapsed, status, resp);
+        log.info("Chat response completed elapsedMs={} status={} model={} promptTokens={} completionTokens={} totalTokens={} tokensPerSecond={}",
+                elapsed, status, resp.getModel(), resp.getPromptTokens(), resp.getCompletionTokens(), resp.getTotalTokens(),
+                resp.getTokensPerSecond());
         return status.equals("ok") ? ResponseEntity.ok(resp) : ResponseEntity.status(502).body(resp);
+    }
+
+    private Double calculateTokensPerSecond(ModelService.ModelResponse response, long elapsedMs) {
+        if (response == null || response.completionTokens() == null || elapsedMs <= 0) {
+            return null;
+        }
+        double tokensPerSecond = response.completionTokens() / (elapsedMs / 1000.0);
+        return Math.round(tokensPerSecond * 100.0) / 100.0;
     }
 }
