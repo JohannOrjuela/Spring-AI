@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:4200")
@@ -30,15 +31,21 @@ public class ChatController {
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(@Valid @RequestBody ChatRequest req, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
-            String err = bindingResult.getAllErrors().toString();
-            log.warn("Validation failed for chat request: {}", err);
-            ChatResponse bad = new ChatResponse(UUID.randomUUID().toString(), "", 0, "error",
+            List<ChatResponse.ValidationError> errors = bindingResult.getFieldErrors().stream()
+                    .map(error -> new ChatResponse.ValidationError(error.getField(), error.getDefaultMessage()))
+                    .toList();
+            List<String> validationCodes = bindingResult.getFieldErrors().stream()
+                    .map(error -> error.getField() + ":" + error.getCode())
+                    .toList();
+            log.warn("Validation failed for chat request fields={}", validationCodes);
+            ChatResponse bad = new ChatResponse(UUID.randomUUID().toString(), "Request validation failed", 0, "error",
                     null, null, null, null, null, null);
+            bad.setErrors(errors);
             return ResponseEntity.badRequest().body(bad);
         }
 
         long start = System.nanoTime();
-        ModelService.ModelResponse modelResponse = modelService.generateResponse(req.getQuestion(), req.getSessionId());
+        ModelService.ModelResponse modelResponse = modelService.generateResponse(req);
         long elapsed = Math.max(0, (System.nanoTime() - start) / 1_000_000);
 
         String answer = modelResponse == null || modelResponse.answer() == null ? "" : modelResponse.answer();

@@ -11,11 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up JDK 25
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: '21'
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Run backend tests
         run: gradle -p backend test --no-daemon
       - name: Start services
@@ -26,6 +32,14 @@ jobs:
           sleep 10
           chmod +x scripts/smoke_test.sh
           ./scripts/smoke_test.sh
+      - name: Install browser test dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run frontend-to-model acceptance test
+        working-directory: frontend
+        run: npm run test:e2e
       - name: Tear down
         if: always()
         run: docker compose -f docker/docker-compose.yml down --volumes || true

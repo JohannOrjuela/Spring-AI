@@ -33,6 +33,8 @@ docker-compose.override.yml
 
 # Coverage
 coverage/
+test-results/
+playwright-report/
 
 # Misc
 *.keystore

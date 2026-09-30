@@ -147,8 +147,9 @@
   .contract-value { color: var(--ink); overflow-wrap: anywhere; }
 
   /* ---- Composición ---- */
-  .composer { display: flex; gap: 8px; }
-  .composer input {
+  .composer { display: flex; flex-direction: column; gap: 10px; }
+  .composer-row { display: flex; gap: 8px; }
+  .composer-row input {
     flex: 1;
     min-width: 0;
     padding: 11px 13px;
@@ -158,7 +159,7 @@
     border: 1px solid var(--line);
     border-radius: 3px;
   }
-  .composer input::placeholder { color: var(--muted); }
+  .composer-row input::placeholder { color: var(--muted); }
   .composer button {
     padding: 11px 20px;
     font: inherit;
@@ -173,6 +174,48 @@
   .composer button:disabled,
   .composer input:disabled { opacity: 0.5; cursor: not-allowed; }
 
+  .sampling {
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: rgba(252, 253, 251, 0.55);
+  }
+  .sampling summary {
+    cursor: pointer;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .sampling-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 10px;
+  }
+  .sampling-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+  .sampling-field input {
+    width: 100%;
+    padding: 8px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-family: var(--mono);
+  }
+  .sampling-help {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
   .hint {
@@ -184,6 +227,10 @@
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
+  }
+
+  @media (max-width: 640px) {
+    .sampling-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 </head>
@@ -203,9 +250,32 @@
   </div>
 
   <form class="composer" id="composer">
-    <label for="input" class="sr-only" hidden>Pregunta</label>
-    <input id="input" autocomplete="off" placeholder="Escribe tu pregunta" required>
-    <button type="submit" id="send">Enviar</button>
+    <details class="sampling" id="sampling">
+      <summary>Parámetros de muestreo (opcionales)</summary>
+      <div class="sampling-grid">
+        <label class="sampling-field">temperature · 0–2
+          <input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="default">
+        </label>
+        <label class="sampling-field">topP · 0–1
+          <input id="topP" type="number" min="0" max="1" step="0.05" placeholder="default">
+        </label>
+        <label class="sampling-field">topK · 0–200
+          <input id="topK" type="number" min="0" max="200" step="1" placeholder="default">
+        </label>
+        <label class="sampling-field">numPredict · 1–2048
+          <input id="numPredict" type="number" min="1" max="2048" step="1" placeholder="default">
+        </label>
+        <label class="sampling-field">seed · entero
+          <input id="seed" type="number" min="-2147483648" max="2147483647" step="1" placeholder="default">
+        </label>
+      </div>
+      <p class="sampling-help">Deja un campo vacío para conservar el valor predeterminado de Ollama.</p>
+    </details>
+    <div class="composer-row">
+      <label for="input" class="sr-only" hidden>Pregunta</label>
+      <input id="input" autocomplete="off" placeholder="Escribe tu pregunta" required>
+      <button type="submit" id="send">Enviar</button>
+    </div>
   </form>
 
   <p class="hint" id="hint"></p>
@@ -235,6 +305,13 @@
   const $hint       = document.getElementById("hint");
   const $dot        = document.getElementById("dot");
   const $probeText  = document.getElementById("probe-text");
+  const samplingInputs = {
+    temperature: document.getElementById("temperature"),
+    topP: document.getElementById("topP"),
+    topK: document.getElementById("topK"),
+    numPredict: document.getElementById("numPredict"),
+    seed: document.getElementById("seed")
+  };
 
   /* ---------- Render ---------- */
 
@@ -266,7 +343,7 @@
       const panel = document.createElement("div");
       panel.className = "contract";
       ["requestId", "answer", "elapsedMs", "status", "promptTokens", "completionTokens",
-        "totalTokens", "model", "finishReason", "tokensPerSecond"].forEach((key) => {
+        "totalTokens", "model", "finishReason", "tokensPerSecond", "errors"].forEach((key) => {
         const row = document.createElement("div");
         row.className = "contract-row";
         const name = document.createElement("span");
@@ -276,7 +353,7 @@
         value.className = "contract-value";
         value.textContent = contract[key] === null || contract[key] === undefined
           ? "null"
-          : String(contract[key]);
+          : typeof contract[key] === "object" ? JSON.stringify(contract[key]) : String(contract[key]);
         row.append(name, value);
         panel.append(row);
       });
@@ -290,6 +367,7 @@
 
   function setBusy(busy) {
     $input.disabled = busy;
+    Object.values(samplingInputs).forEach((input) => input.disabled = busy);
     $send.disabled = busy;
     $send.textContent = busy ? "Generando…" : "Enviar";
     $hint.textContent = busy ? "El modelo está respondiendo. Puede tardar en la primera consulta." : "";
@@ -322,7 +400,13 @@
 
   /* ---------- Envío ---------- */
 
-  async function ask(question) {
+  function readSamplingOptions() {
+    return Object.fromEntries(Object.entries(samplingInputs)
+      .filter(([, input]) => input.value !== "")
+      .map(([name, input]) => [name, Number(input.value)]));
+  }
+
+  async function ask(question, samplingOptions) {
     const started = performance.now();
     setBusy(true);
 
@@ -330,7 +414,7 @@
       const res = await fetch(`${API}/api/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, sessionId: SESSION_ID }),
+        body: JSON.stringify({ question, sessionId: SESSION_ID, ...samplingOptions }),
         signal: AbortSignal.timeout(TIMEOUT_MS)
       });
 
@@ -374,9 +458,13 @@
     e.preventDefault();
     const question = $input.value.trim();
     if (!question) return;
-    addTurn("user", "tú", question);
+    const samplingOptions = readSamplingOptions();
+    const samplingStamp = Object.keys(samplingOptions).length
+      ? Object.entries(samplingOptions).map(([name, value]) => `${name}=${value}`).join(" · ")
+      : "defaults de Ollama";
+    addTurn("user", "tú", question, samplingStamp);
     $input.value = "";
-    ask(question);
+    ask(question, samplingOptions);
   });
 
   probe();

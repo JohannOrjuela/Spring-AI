@@ -1,5 +1,7 @@
 package com.example.chat.dto;
 
+import java.util.List;
+
 public class ChatResponse {
     private String requestId;
     private String answer;
@@ -11,6 +13,9 @@ public class ChatResponse {
     private String model;
     private String finishReason;
     private Double tokensPerSecond;
+    private List<ValidationError> errors;
+
+    public record ValidationError(String field, String message) {}
 
     public ChatResponse() {}
 
@@ -61,4 +66,6 @@ public class ChatResponse {
     public void setFinishReason(String finishReason) { this.finishReason = finishReason; }
     public Double getTokensPerSecond() { return tokensPerSecond; }
     public void setTokensPerSecond(Double tokensPerSecond) { this.tokensPerSecond = tokensPerSecond; }
+    public List<ValidationError> getErrors() { return errors; }
+    public void setErrors(List<ValidationError> errors) { this.errors = errors; }
 }
