@@ -7,8 +7,17 @@ build/
 # Git
 .git
 
+# Docker metadata
+Dockerfile*
+.dockerignore
+
 # Environment
 .env
+.env.*
 
 # Logs
 *.log
+*.log*
+
+# Coverage
+coverage/

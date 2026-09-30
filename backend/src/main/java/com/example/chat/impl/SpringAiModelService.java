@@ -1,11 +1,13 @@
 package com.example.chat.impl;
 
 import com.example.chat.ModelService;
+import com.example.chat.dto.ChatRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,13 +37,33 @@ public class SpringAiModelService implements ModelService {
     }
 
     @Override
-    public ModelResponse generateResponse(String question, String sessionId) {
+    public ModelResponse generateResponse(ChatRequest request) {
         log.debug("Enviando prompt al modelo");
 
-        org.springframework.ai.chat.model.ChatResponse response = chatClient.prompt()
-                .user(question)
-                .call()
-                .chatResponse();
+        ChatClient.ChatClientRequestSpec prompt = chatClient.prompt()
+                .user(request.getQuestion());
+
+        if (hasSamplingOptions(request)) {
+            OllamaChatOptions.Builder options = OllamaChatOptions.builder();
+            if (request.getTemperature() != null) {
+                options.temperature(request.getTemperature());
+            }
+            if (request.getTopP() != null) {
+                options.topP(request.getTopP());
+            }
+            if (request.getTopK() != null) {
+                options.topK(request.getTopK());
+            }
+            if (request.getNumPredict() != null) {
+                options.numPredict(request.getNumPredict());
+            }
+            if (request.getSeed() != null) {
+                options.seed(request.getSeed());
+            }
+            prompt = prompt.options(options);
+        }
+
+        org.springframework.ai.chat.model.ChatResponse response = prompt.call().chatResponse();
 
         if (response == null) {
             log.warn("El modelo no devolvio metadatos de respuesta");
@@ -70,5 +92,13 @@ public class SpringAiModelService implements ModelService {
                 usage == null ? null : usage.getTotalTokens(),
                 model,
                 finishReason);
+    }
+
+    private boolean hasSamplingOptions(ChatRequest request) {
+        return request.getTemperature() != null
+                || request.getTopP() != null
+                || request.getTopK() != null
+                || request.getNumPredict() != null
+                || request.getSeed() != null;
     }
 }

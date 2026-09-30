@@ -1,0 +1,147 @@
+openapi: 3.1.0
+info:
+  title: Pruebachat API - Per-Request Sampling Parameters
+  version: 1.0.0
+paths:
+  /api/v1/chat:
+    post:
+      summary: Generate a chat response with optional request-scoped Ollama sampling values
+      operationId: chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            examples:
+              configuredDefaults:
+                value:
+                  question: Escribe una frase breve.
+                  sessionId: demo
+              requestOverrides:
+                value:
+                  question: Escribe una frase breve.
+                  sessionId: demo
+                  temperature: 0.7
+                  topP: 0.9
+                  topK: 40
+                  numPredict: 50
+                  seed: 7
+      responses:
+        '200':
+          description: Model response using configured defaults and any supplied overrides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Request validation failed before model invocation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                requestId: 00000000-0000-0000-0000-000000000000
+                answer: Request validation failed
+                elapsedMs: 0
+                status: error
+                promptTokens: null
+                completionTokens: null
+                totalTokens: null
+                model: null
+                finishReason: null
+                tokensPerSecond: null
+                errors:
+                  - field: temperature
+                    message: temperature must be less than or equal to 2.0
+        '502':
+          description: Model gateway failure using the existing feature 003 error shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '500':
+          description: Unexpected server failure using the existing feature 003 error shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      required: [question]
+      properties:
+        sessionId:
+          type: [string, 'null']
+        question:
+          type: string
+          minLength: 1
+        temperature:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 2.0
+        topP:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 1.0
+        topK:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 200
+        numPredict:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 2048
+        seed:
+          type: [integer, 'null']
+          format: int32
+    ValidationError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ChatResponse'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/ValidationError'
+    ChatResponse:
+      type: object
+      required: [requestId, answer, elapsedMs, status, promptTokens, completionTokens, totalTokens, model, finishReason, tokensPerSecond]
+      properties:
+        requestId:
+          type: [string, 'null']
+        answer:
+          type: string
+        elapsedMs:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [ok, error]
+        promptTokens:
+          type: [integer, 'null']
+        completionTokens:
+          type: [integer, 'null']
+        totalTokens:
+          type: [integer, 'null']
+        model:
+          type: [string, 'null']
+        finishReason:
+          type: [string, 'null']
+        tokensPerSecond:
+          type: [number, 'null']
+        errors:
+          type: [array, 'null']
+          items:
+            $ref: '#/components/schemas/ValidationError'
