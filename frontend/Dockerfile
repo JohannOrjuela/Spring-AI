@@ -1,6 +1,11 @@
-FROM node:24-alpine
+FROM node:24-alpine AS build
 WORKDIR /app
-RUN npm install -g http-server --silent
-COPY src/index.html ./public/index.html
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:1.29-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist/pruebachat-frontend/browser /usr/share/nginx/html
 EXPOSE 4200
-CMD ["http-server", "public", "-p", "4200", "-c-1"]

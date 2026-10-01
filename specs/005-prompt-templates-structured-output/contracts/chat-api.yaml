@@ -1,0 +1,310 @@
+openapi: 3.1.0
+info:
+  title: Pruebachat API - Prompt Templates and Structured Output
+  version: 1.0.0
+paths:
+  /api/v1/chat:
+    post:
+      summary: Generate a chat response using a registered prompt template
+      operationId: chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            examples:
+              defaultTemplate:
+                value:
+                  question: Explica la fotosíntesis brevemente.
+              tutorWithSampling:
+                value:
+                  question: Explica la fotosíntesis paso a paso.
+                  sessionId: demo
+                  templateId: tutor
+                  rol: tutor académico
+                  dominio: biología
+                  idioma: español
+                  temperature: 0.3
+                  topP: 0.9
+                  topK: 40
+                  numPredict: 300
+                  seed: 7
+      responses:
+        '200':
+          description: Free-form response with existing metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Invalid or unknown field, forbidden prompt-control property, or unregistered template; model is not invoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatValidationErrorResponse'
+        '502':
+          description: Model/provider failure using the existing nullable metric shape
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '500':
+          description: Unexpected server failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+  /api/v1/classifications:
+    post:
+      summary: Classify text into the required structured schema
+      operationId: classify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassificationRequest'
+            example:
+              text: No puedo iniciar sesión en mi cuenta.
+              rol: analista de soporte
+              dominio: soporte técnico
+              idioma: español
+              temperature: 0.2
+              numPredict: 200
+      responses:
+        '200':
+          description: Valid typed classification with final response metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationResponse'
+              example:
+                requestId: 00000000-0000-0000-0000-000000000000
+                classification:
+                  categoria: soporte
+                  confianza: 94
+                  justificacion: La consulta indica un problema de acceso a la cuenta.
+                answer: null
+                elapsedMs: 540
+                status: ok
+                promptTokens: 68
+                completionTokens: 29
+                totalTokens: 97
+                model: gemma3:4b
+                finishReason: stop
+                tokensPerSecond: 53.7
+                errors: null
+        '400':
+          description: Invalid or unknown input, including forbidden prompt-control properties, rejected before model invocation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationValidationErrorResponse'
+        '502':
+          description: Provider, conversion, or exhausted schema-validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationResponse'
+        '500':
+          description: Unexpected server failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationResponse'
+components:
+  schemas:
+    SamplingParameters:
+      type: object
+      properties:
+        temperature:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 2.0
+        topP:
+          type: [number, 'null']
+          minimum: 0.0
+          maximum: 1.0
+        topK:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 200
+        numPredict:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 2048
+        seed:
+          type: [integer, 'null']
+          format: int32
+          minimum: -2147483648
+          maximum: 2147483647
+    PromptContext:
+      type: object
+      properties:
+        rol:
+          type: [string, 'null']
+          minLength: 1
+          pattern: '\S'
+          default: asistente
+        dominio:
+          type: [string, 'null']
+          minLength: 1
+          pattern: '\S'
+          default: general
+        idioma:
+          type: [string, 'null']
+          minLength: 1
+          pattern: '\S'
+          default: el mismo idioma del contenido del usuario
+    ChatRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/SamplingParameters'
+        - $ref: '#/components/schemas/PromptContext'
+        - type: object
+          required: [question]
+          properties:
+            sessionId:
+              type: [string, 'null']
+            question:
+              type: string
+              minLength: 1
+              pattern: '\S'
+            templateId:
+              type: [string, 'null']
+              enum: [conciso, tutor, extractor, null]
+              default: conciso
+    ClassificationRequest:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: '#/components/schemas/SamplingParameters'
+        - $ref: '#/components/schemas/PromptContext'
+        - type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+              minLength: 1
+              pattern: '\S'
+    Clasificacion:
+      type: object
+      additionalProperties: false
+      required: [categoria, confianza, justificacion]
+      properties:
+        categoria:
+          type: string
+          minLength: 1
+          pattern: '\S'
+        confianza:
+          type: integer
+          minimum: 0
+          maximum: 100
+        justificacion:
+          type: string
+          minLength: 1
+          pattern: '\S'
+    ValidationError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ChatResponse:
+      type: object
+      required: [requestId, answer, elapsedMs, status, promptTokens, completionTokens, totalTokens, model, finishReason, tokensPerSecond, errors]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          minLength: 1
+          pattern: '\S'
+        answer:
+          type: string
+        elapsedMs:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [ok, error]
+        promptTokens:
+          type: [integer, 'null']
+        completionTokens:
+          type: [integer, 'null']
+        totalTokens:
+          type: [integer, 'null']
+        model:
+          type: [string, 'null']
+        finishReason:
+          type: [string, 'null']
+        tokensPerSecond:
+          type: [number, 'null']
+        errors:
+          type: [array, 'null']
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    ClassificationResponse:
+      type: object
+      required: [requestId, classification, answer, elapsedMs, status, promptTokens, completionTokens, totalTokens, model, finishReason, tokensPerSecond, errors]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+          minLength: 1
+          pattern: '\S'
+        classification:
+          oneOf:
+            - $ref: '#/components/schemas/Clasificacion'
+            - type: 'null'
+        answer:
+          type: [string, 'null']
+        elapsedMs:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [ok, error]
+        promptTokens:
+          type: [integer, 'null']
+        completionTokens:
+          type: [integer, 'null']
+        totalTokens:
+          type: [integer, 'null']
+        model:
+          type: [string, 'null']
+        finishReason:
+          type: [string, 'null']
+        tokensPerSecond:
+          type: [number, 'null']
+        errors:
+          type: [array, 'null']
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    ChatValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ChatResponse'
+        - type: object
+          properties:
+            status:
+              const: error
+            answer:
+              const: Request validation failed
+            errors:
+              type: array
+              minItems: 1
+    ClassificationValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ClassificationResponse'
+        - type: object
+          properties:
+            status:
+              const: error
+            classification:
+              type: 'null'
+            answer:
+              const: Request validation failed
+            errors:
+              type: array
+              minItems: 1

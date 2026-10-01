@@ -1,45 +1,52 @@
 name: Smoke Test
-
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Set up Node.js 24
-        uses: actions/setup-node@v4
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.5'
+      - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Run backend tests
+      - name: Backend tests
         run: gradle -p backend test --no-daemon
-      - name: Start services
-        run: |
-          docker compose -f docker/docker-compose.yml up -d --build || true
-      - name: Wait and run smoke test
-        run: |
-          sleep 10
-          chmod +x scripts/smoke_test.sh
-          ./scripts/smoke_test.sh
-      - name: Install browser test dependencies
+      - name: Angular install, build and unit tests
         working-directory: frontend
         run: |
           npm ci
-          npx playwright install --with-deps chromium
-      - name: Run frontend-to-model acceptance test
+          npm run build
+          npm test -- --watch=false
+      - name: Start services
+        run: docker compose -f docker/docker-compose.yml up -d --build
+      - name: Wait for backend readiness
+        run: |
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://localhost:8080/health/llm | jq -e '.ok == true' >/dev/null; then exit 0; fi
+            sleep 5
+          done
+          docker compose -f docker/docker-compose.yml logs --tail=50 backend
+          exit 1
+      - name: API smoke test
+        run: bash scripts/smoke_test.sh
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Browser acceptance tests
         working-directory: frontend
         run: npm run test:e2e
       - name: Tear down
         if: always()
-        run: docker compose -f docker/docker-compose.yml down --volumes || true
+        run: docker compose -f docker/docker-compose.yml down

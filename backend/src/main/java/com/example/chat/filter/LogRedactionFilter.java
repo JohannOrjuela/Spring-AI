@@ -11,21 +11,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.regex.Pattern;
+import java.util.Set;
 
 /**
- * Simple log redaction filter placeholder. Replace patterns for secrets/PII.
+ * Logs only known route labels. Bodies, query strings and arbitrary paths are never logged.
  */
 @Component
 public class LogRedactionFilter implements Filter {
     private static final Logger log = LoggerFactory.getLogger(LogRedactionFilter.class);
-    private static final Pattern SECRET_PATTERN = Pattern.compile("(?i)(api_key|token|password)\"?:?\\s*\\\"?\\w+\\\"?");
+    private static final Set<String> ROUTES = Set.of("/api/v1/chat", "/api/v1/classifications", "/health/llm");
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (request instanceof HttpServletRequest) {
             HttpServletRequest req = (HttpServletRequest) request;
-            log.debug("Request: method={} path={}", req.getMethod(), req.getRequestURI());
+            String route = ROUTES.contains(req.getRequestURI()) ? req.getRequestURI() : "other";
+            log.debug("Request: method={} route={}", req.getMethod(), route);
         }
         chain.doFilter(request, response);
     }
