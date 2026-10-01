@@ -19,7 +19,7 @@ export interface Metrics {
   errors: { field: string; message: string }[] | null;
 }
 export interface ChatRequest extends Sampling, Context {
-  question: string; sessionId: string; templateId?: 'conciso' | 'tutor' | 'extractor';
+  question: string; sessionId?: string | null; templateId?: 'conciso' | 'tutor' | 'extractor';
 }
 export interface ChatResponse extends Metrics { answer: string; }
 export interface ClassificationRequest extends Sampling, Context { text: string; }

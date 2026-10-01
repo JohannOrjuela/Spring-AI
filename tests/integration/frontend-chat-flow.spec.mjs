@@ -38,6 +38,17 @@ test('template-selected chat preserves sampling and feature 003 metrics', async 
   await expect(turn.locator('.body')).not.toHaveText('');
   await expect(turn.locator('.contract-row')).toHaveCount(11);
   await assertMetrics(turn);
+
+  await page.locator('#input').fill('Continua con un segundo ejemplo breve.');
+  const secondResponsePromise = page.waitForResponse(response => response.url().endsWith('/api/v1/chat') && response.request().method() === 'POST');
+  await page.locator('#send').click();
+  const secondResponse = await secondResponsePromise;
+  expect(secondResponse.status()).toBe(200);
+  expect(secondResponse.request().postDataJSON().sessionId).toBe(response.request().postDataJSON().sessionId);
+  const secondTurn = page.locator('.turn[data-who="bot"]').last();
+  await expect(secondTurn.locator('.body')).not.toHaveText('');
+  await expect(secondTurn.locator('.contract-row')).toHaveCount(11);
+  await assertMetrics(secondTurn);
   expect(errors).toEqual([]);
 });
 test('classification displays typed result and metrics from the model', async ({ page }) => {

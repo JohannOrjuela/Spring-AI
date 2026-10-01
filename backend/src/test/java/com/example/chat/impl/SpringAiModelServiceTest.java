@@ -1,9 +1,13 @@
 package com.example.chat.impl;
 
 import com.example.chat.dto.ChatRequest;
+import com.example.chat.memory.ConversationMemoryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
@@ -23,6 +27,49 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SpringAiModelServiceTest {
+
+    @Test
+    void sameSessionAddsOrderedHistoryBehindCurrentSystemInstruction() {
+        Harness harness = harness(providerResponse("answer", 1, 1, 2, "model", "stop"));
+        ChatRequest first = request("first-question");
+        first.setTemplateId("conciso");
+        ChatRequest second = request("second-question");
+        second.setTemplateId("tutor");
+        second.setRol("reviewer");
+        second.setDominio("memory");
+        second.setIdioma("english");
+
+        harness.service.generateResponse(first);
+        harness.service.generateResponse(second);
+
+        @SuppressWarnings("unchecked")
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(harness.requestSpec, times(2)).messages(captor.capture());
+        List<Message> secondPrompt = (List<Message>) captor.getAllValues().get(1);
+        assertThat(secondPrompt).hasSize(4);
+        assertThat(secondPrompt.getFirst()).isInstanceOf(org.springframework.ai.chat.messages.SystemMessage.class);
+        assertThat(secondPrompt.get(1).getText()).contains("first-question");
+        assertThat(secondPrompt.get(2).getText()).isEqualTo("answer");
+        assertThat(secondPrompt.get(3).getText()).contains("second-question");
+        assertThat(secondPrompt.getFirst().getText()).contains("reviewer", "memory", "english");
+    }
+
+    @Test
+    void nullSessionNeverReusesPriorMessages() {
+        Harness harness = harness(providerResponse("answer", 1, 1, 2, "model", "stop"));
+        ChatRequest first = request("first");
+        first.setSessionId(null);
+        ChatRequest second = request("second");
+        second.setSessionId(null);
+
+        harness.service.generateResponse(first);
+        harness.service.generateResponse(second);
+
+        @SuppressWarnings("unchecked")
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(harness.requestSpec, times(2)).messages(captor.capture());
+        assertThat(captor.getAllValues()).allSatisfy(messages -> assertThat((List<?>) messages).hasSize(2));
+    }
 
     @Test
     void mapsProviderUsageModelTextAndFinishReason() {
@@ -211,11 +258,17 @@ class SpringAiModelServiceTest {
         when(requestSpec.system(anyString())).thenReturn(requestSpec);
         when(requestSpec.templateRenderer(any())).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.messages(any(List.class))).thenReturn(requestSpec);
         when(requestSpec.options(any(OllamaChatOptions.Builder.class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(providerResponse);
+        var memory = MessageWindowChatMemory.builder()
+                .chatMemoryRepository(new InMemoryChatMemoryRepository())
+                .maxMessages(ConversationMemoryService.MAX_NON_SYSTEM_MESSAGES)
+                .build();
         return new Harness(new SpringAiModelService(builder, new com.example.chat.prompt.PromptTemplateRegistry(),
-                jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()), requestSpec);
+                jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator(),
+                new ConversationMemoryService(memory)), requestSpec);
     }
 
     private static org.springframework.ai.chat.model.ChatResponse providerResponse(

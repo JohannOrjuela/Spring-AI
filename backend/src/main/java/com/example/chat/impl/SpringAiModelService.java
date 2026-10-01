@@ -9,15 +9,20 @@ import com.example.chat.prompt.PromptTemplateRegistry;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import com.example.chat.exception.ModelOperationException;
+import com.example.chat.memory.ConversationMemoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -31,23 +36,37 @@ public class SpringAiModelService implements ModelService {
     private final ChatClient chatClient;
     private final PromptTemplateRegistry templates;
     private final Validator validator;
+    private final ConversationMemoryService conversationMemory;
 
-    public SpringAiModelService(ChatClient.Builder builder, PromptTemplateRegistry templates, Validator validator) {
+    public SpringAiModelService(ChatClient.Builder builder, PromptTemplateRegistry templates, Validator validator,
+                                ConversationMemoryService conversationMemory) {
         this.chatClient = builder.build();
         this.templates = templates;
         this.validator = validator;
+        this.conversationMemory = conversationMemory;
     }
 
     @Override
     public ModelResponse generateResponse(ChatRequest request) {
         Map<String, Object> variables = variables(request.getRol(), request.getDominio(), request.getIdioma(), request.getQuestion());
-        var prompt = withOptions(chatClient.prompt().system(templates.renderSystem(request.getTemplateId(), variables))
-                .user(templates.renderUser(variables)).templateRenderer((text, params) -> text), request);
+        String systemText = templates.renderSystem(request.getTemplateId(), variables);
+        String userText = templates.renderUser(variables);
         long start = System.nanoTime();
-        ProviderData data;
-        try { data = providerData(prompt.call().chatResponse()); }
-        catch (RuntimeException ex) { throw new ModelOperationException(start); }
-        return new ModelResponse(data.answer(), data.promptTokens(), data.completionTokens(), data.totalTokens(), data.model(), data.finishReason());
+        try {
+            return conversationMemory.execute(request.getSessionId(), userText, nonSystemMessages -> {
+                List<Message> providerMessages = new ArrayList<>(nonSystemMessages.size() + 1);
+                providerMessages.add(new SystemMessage(systemText));
+                providerMessages.addAll(nonSystemMessages);
+                var prompt = withOptions(chatClient.prompt().messages(List.copyOf(providerMessages))
+                        .templateRenderer((text, params) -> text), request);
+                ProviderData data = providerData(prompt.call().chatResponse());
+                ModelResponse response = new ModelResponse(data.answer(), data.promptTokens(), data.completionTokens(),
+                        data.totalTokens(), data.model(), data.finishReason());
+                return new ConversationMemoryService.TurnResult<>(response, data.answer());
+            });
+        } catch (RuntimeException ex) {
+            throw new ModelOperationException(start);
+        }
     }
 
     @Override

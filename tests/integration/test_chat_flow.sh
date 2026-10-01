@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple integration test: POST to backend and expect non-empty answer
 URL="http://localhost:8080/api/v1/chat"
-PAYLOAD='{"question":"Integration test","sessionId":"it"}'
+SESSION_ID="integration-memory-$(date +%s)-$$"
 
-RESPONSE=$(curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$URL" || true)
+check_turn() {
+  local question="$1" response
+  response=$(curl --fail-with-body -sS -H "Content-Type: application/json" \
+    -d "$(jq -cn --arg question "$question" --arg sessionId "$SESSION_ID" \
+      '{question:$question,sessionId:$sessionId,temperature:0,seed:7}')" "$URL")
+  echo "$response" | jq -e '
+    .status == "ok" and
+    (.requestId | type == "string" and length > 0) and
+    (.answer | type == "string" and test("\\S")) and
+    (.elapsedMs | type == "number" and . >= 0) and
+    has("promptTokens") and has("completionTokens") and has("totalTokens") and
+    has("model") and has("finishReason") and has("tokensPerSecond") and has("errors")
+  ' >/dev/null
+}
 
-if [ -z "$RESPONSE" ]; then
-  echo "No response"
-  exit 2
-fi
+command -v jq >/dev/null || { echo "jq is required"; exit 1; }
+check_turn "Reten este marcador sintetico: ALFA-006."
+check_turn "Continua la conversacion usando el contexto disponible."
 
-echo "Response: $RESPONSE"
-echo "$RESPONSE" | grep -q 'answer' || { echo "Missing answer field"; exit 3; }
-
-echo "Integration smoke test passed"
+echo "Two-turn integration contract passed"
