@@ -98,5 +98,17 @@ class ChatRequestTest {
         return request;
     }
 
+    @Test void contextStaysNullAndOnlyBlankValuesAreRejected() {
+        var mapper=tools.jackson.databind.json.JsonMapper.builder().build();
+        for(String json:List.of("{\"question\":\"x\"}","{\"question\":\"x\",\"templateId\":null,\"rol\":null,\"dominio\":null,\"idioma\":null}")) {
+            var req=mapper.readValue(json,ChatRequest.class);
+            assertThat(req.getTemplateId()).isNull();assertThat(req.getRol()).isNull();
+            assertThat(req.getDominio()).isNull();assertThat(req.getIdioma()).isNull();
+        }
+        var req=validRequest();req.setRol(" \n");req.setDominio("");req.setIdioma(" ");req.setTemplateId(" ");
+        assertThat(VALIDATOR.validate(req)).hasSize(4);
+        req.setRol("long\n".repeat(2000));req.setDominio(null);req.setIdioma(null);req.setTemplateId(null);
+        assertThat(VALIDATOR.validate(req)).isEmpty();
+    }
     private record InvalidCase(String field, Consumer<ChatRequest> mutation) {}
 }

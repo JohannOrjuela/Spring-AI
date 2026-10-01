@@ -208,11 +208,14 @@ class SpringAiModelServiceTest {
         when(builder.defaultSystem(anyString())).thenReturn(builder);
         when(builder.build()).thenReturn(chatClient);
         when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.templateRenderer(any())).thenReturn(requestSpec);
         when(requestSpec.user(anyString())).thenReturn(requestSpec);
         when(requestSpec.options(any(OllamaChatOptions.Builder.class))).thenReturn(requestSpec);
         when(requestSpec.call()).thenReturn(callSpec);
         when(callSpec.chatResponse()).thenReturn(providerResponse);
-        return new Harness(new SpringAiModelService(builder), requestSpec);
+        return new Harness(new SpringAiModelService(builder, new com.example.chat.prompt.PromptTemplateRegistry(),
+                jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()), requestSpec);
     }
 
     private static org.springframework.ai.chat.model.ChatResponse providerResponse(

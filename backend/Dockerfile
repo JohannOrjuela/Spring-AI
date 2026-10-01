@@ -10,5 +10,5 @@ WORKDIR /app
 RUN useradd --create-home --shell /usr/sbin/nologin spring
 COPY --from=build --chown=spring:spring /home/gradle/project/build/libs/*.jar app.jar
 USER spring
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

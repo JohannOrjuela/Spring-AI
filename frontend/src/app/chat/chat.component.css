@@ -1,11 +1,7 @@
-.chat { max-width: 700px; margin: 1rem auto; }
-.messages { border: 1px solid #ddd; padding: 1rem; min-height: 200px; }
-.message.user { text-align: right; color: #111; }
-.message.bot { text-align: left; color: #007acc; }
-.response-contract { display: grid; gap: 0.25rem; margin-top: 0.75rem; padding: 0.65rem; border-left: 3px solid #007acc; background: #f6f8fa; color: #555; font-size: 0.78rem; }
-.metadata-row { display: grid; grid-template-columns: minmax(120px, 0.35fr) 1fr; gap: 0.75rem; }
-.metadata-row span { color: #666; }
-.metadata-row code { overflow-wrap: anywhere; color: #222; }
-.controls { display:flex; gap:0.5rem; margin-top:0.5rem; }
-.controls input { flex:1; padding:0.5rem; }
-.controls button { padding:0.5rem 1rem; }
+.shell{max-width:850px;margin:auto;padding:24px;display:grid;gap:16px}.rail{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #c9cfc9}.rail h1{font-size:18px}.probe,.who{font:12px ui-monospace;color:#68716d}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#8a6a1f;margin-right:6px}.dot[data-state=up]{background:#2e6b4f}.dot[data-state=down]{background:#b03a2e}.settings,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}.settings label,.grid label{display:grid;gap:4px;font-size:12px;color:#68716d}input,select{padding:8px;border:1px solid #c9cfc9;border-radius:3px;background:#fcfdfb}.transcript{min-height:290px;max-height:48vh;overflow:auto;display:grid;align-content:start;gap:12px}.empty{text-align:center;color:#68716d;margin:auto}.turn{display:grid;gap:4px}.turn[data-who=user]{justify-items:end}.body{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px 13px;border:1px solid #c9cfc9;background:#fcfdfb}.turn[data-who=fault] .body{border-color:#b03a2e;color:#b03a2e}.contract{width:100%;display:grid;gap:3px;padding:8px;border-left:3px solid #2e6b4f;background:#f3f6f3;font:11px ui-monospace}.contract-row{display:grid;grid-template-columns:135px 1fr}.contract-key{color:#68716d}.composer{display:grid;gap:10px}.sampling{padding:10px;border:1px solid #c9cfc9}.grid{margin-top:10px}.row{display:flex;gap:8px}.row input{flex:1}.row button{padding:8px 18px;background:#14181a;color:white;border:0;border-radius:3px}.row button:disabled{opacity:.5}
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+small { color: #68716d; }
+.grid input { width: 100%; min-width: 0; }
+.contract-row code { overflow-wrap: anywhere; min-width: 0; }
+.row input { min-width: 0; }
+@media (max-width: 500px) { .shell { padding: 14px; } .contract-row { grid-template-columns: 115px 1fr; } }

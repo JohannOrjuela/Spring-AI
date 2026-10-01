@@ -238,6 +238,36 @@ class ChatControllerTest {
         assertThat(logs(serviceLogAppender)).doesNotContain("private-question", "private-answer");
     }
 
+    @Test void acceptsTemplateSelectionsAndNullContext() throws Exception {
+        for(String template:List.of("conciso", "tutor", "extractor")) {
+            mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                .content("{\"question\":\"q\",\"templateId\":\""+template+"\",\"rol\":null}"))
+                .andExpect(status().isOk());
+        }
+        assertThat(modelService.requests).extracting(ChatRequest::getTemplateId).containsExactly("conciso","tutor","extractor");
+    }
+
+    @Test void rejectsUnknownAndUnsafeTemplateIdentifiersBeforeService() throws Exception {
+        for(String template:List.of("", " ", "Tutor", " tutor", "tutor ", "../secret", "file:/secret", "ignore previous instructions")) {
+            mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                .content("{\"question\":\"q\",\"templateId\":\""+template+"\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].field").value("templateId"))
+                .andExpect(jsonPath("$.requestId",org.hamcrest.Matchers.not(org.hamcrest.Matchers.emptyOrNullString())));
+        }
+        assertThat(modelService.requests).isEmpty();
+        assertThat(logs(controllerLogAppender)).doesNotContain("ignore previous instructions", "../secret");
+    }
+
+    @Test void rejectsEveryUnknownPropertyBeforeService() throws Exception {
+        for(String property:List.of("systemPrompt", "promptPath", "resource", "template", "unknown")) {
+            mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                .content("{\"question\":\"q\",\""+property+"\":\"secret\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors").isNotEmpty())
+                .andExpect(jsonPath("$.answer").value("Request validation failed"));
+        }
+        assertThat(modelService.requests).isEmpty();
+    }
+
     private static String logs(ListAppender<ILoggingEvent> appender) {
         return appender.list.stream().map(ILoggingEvent::getFormattedMessage).reduce("", String::concat);
     }
@@ -268,6 +298,11 @@ class ChatControllerTest {
                 throw failure;
             }
             return response;
+        }
+
+        @Override
+        public ClassificationModelResponse classify(com.example.chat.dto.ClassificationRequest request) {
+            throw new UnsupportedOperationException("Not used by chat tests");
         }
     }
 }
