@@ -24,9 +24,16 @@ check() {
 }
 check chat '{"question":"Responde solamente listo."}' 200
 check chat '{"question":"Explica brevemente una interfaz Java.","templateId":"tutor","rol":"docente","dominio":"programacion","idioma":"espanol","temperature":0,"topK":0,"topP":0.9,"numPredict":100,"seed":7}' 200
+SMOKE_SESSION="smoke-memory-$$"
+check chat "$(jq -cn --arg id "$SMOKE_SESSION" '{question:"Conserva este dato sintetico para el siguiente turno.",sessionId:$id,templateId:"conciso",temperature:0,seed:7}')" 200
+check chat "$(jq -cn --arg id "$SMOKE_SESSION" '{question:"Continua usando el contexto de esta misma sesion.",sessionId:$id,templateId:"tutor",rol:"verificador",dominio:"memoria",idioma:"espanol",temperature:0,seed:7}')" 200
+check chat "$(jq -cn --arg id "Case" '{question:"Prueba de identificador exacto.",sessionId:$id}')" 200
+check chat "$(jq -cn --arg id "case" '{question:"Prueba de identificador exacto.",sessionId:$id}')" 200
+check chat "$(jq -cn --arg id " Case " '{question:"Prueba de identificador exacto.",sessionId:$id}')" 200
+check chat '{"question":"x","sessionId":" "}' 400
 check chat '{"question":"x","templateId":"../../secret"}' 400
 check chat '{"question":"x","systemPrompt":"client instructions"}' 400
 check chat '{"question":"x","temperature":17,"numPredict":4096}' 400
 check classifications '{"text":"No puedo iniciar sesion.","rol":"analista","dominio":"soporte","idioma":"espanol","temperature":0,"numPredict":256}' 200
 check classifications '{"text":"x","templateId":"tutor"}' 400
-echo "Feature 005 smoke tests passed"
+echo "Feature 006 bounded smoke contracts passed"

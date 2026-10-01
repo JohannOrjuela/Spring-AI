@@ -23,6 +23,14 @@ describe('ChatService contracts', () => {
     const req=http.expectOne('http://localhost:8080/api/v1/classifications');
     expect(req.request.body).toEqual(payload);req.flush({});
   });
+  it('preserves omitted and explicit null session identifiers', () => {
+    service.sendChat({question:'omitted'}).subscribe();
+    const omitted=http.expectOne('http://localhost:8080/api/v1/chat');
+    expect(omitted.request.body).toEqual({question:'omitted'});omitted.flush({});
+    service.sendChat({question:'null',sessionId:null}).subscribe();
+    const explicitNull=http.expectOne('http://localhost:8080/api/v1/chat');
+    expect(explicitNull.request.body).toEqual({question:'null',sessionId:null});explicitNull.flush({});
+  });
   it('checks model health', () => {
     service.health().subscribe(result => expect(result.ok).toBeTrue());
     http.expectOne('http://localhost:8080/health/llm').flush({ok:true});

@@ -1,4 +1,4 @@
 <!-- SPECKIT START -->
-For feature 005-prompt-templates-structured-output, read `specs/005-prompt-templates-structured-output/plan.md`
-for the current prompt registry, structured-output contract, validation, testing, and local-run context.
+For feature 006-conversation-memory, read `specs/006-conversation-memory/plan.md`
+for the current memory window, session isolation, compatibility, testing, and local-run context.
 <!-- SPECKIT END -->

@@ -176,6 +176,32 @@ class ChatControllerTest {
     }
 
     @Test
+    void omittedAndNullSessionIdsRemainStatelessAndValid() throws Exception {
+        mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                        .content("{\"question\":\"omitted\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                        .content("{\"question\":\"explicit null\",\"sessionId\":null}"))
+                .andExpect(status().isOk());
+
+        assertThat(modelService.requests).extracting(ChatRequest::getSessionId).containsExactly(null, null);
+    }
+
+    @Test
+    void blankSessionIdsUseSafeValidationEnvelopeWithoutModelCall() throws Exception {
+        for (String sessionId : List.of("", " ")) {
+            mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                            .content("{\"question\":\"question\",\"sessionId\":\"" + sessionId + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.requestId", org.hamcrest.Matchers.not(org.hamcrest.Matchers.emptyOrNullString())))
+                    .andExpect(jsonPath("$.answer").value("Request validation failed"))
+                    .andExpect(jsonPath("$.status").value("error"))
+                    .andExpect(jsonPath("$.errors[0].field").value("sessionId"));
+        }
+        assertThat(modelService.requests).isEmpty();
+    }
+
+    @Test
     void rejectsEveryInvalidFieldWithSafeErrorsAndDoesNotCallModel() throws Exception {
         mockMvc.perform(post("/api/v1/chat").contentType("application/json")
                         .content("""
@@ -224,6 +250,16 @@ class ChatControllerTest {
 
         assertThat(logs(controllerLogAppender)).doesNotContain("sensitive-question", "199999");
         assertThat(modelService.requests).isEmpty();
+    }
+
+    @Test
+    void logsExcludeSessionIdentifierAlongWithConversationContent() throws Exception {
+        mockMvc.perform(post("/api/v1/chat").contentType("application/json")
+                        .content("{\"question\":\"sentinel-user-content\",\"sessionId\":\"sentinel-session-id\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(logs(controllerLogAppender)).doesNotContain("sentinel-user-content", "sentinel-session-id");
+        assertThat(logs(serviceLogAppender)).doesNotContain("sentinel-user-content", "sentinel-session-id");
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.example.chat.impl;
 import com.example.chat.dto.*;
 import com.example.chat.exception.ModelOperationException;
 import com.example.chat.prompt.PromptTemplateRegistry;
+import com.example.chat.memory.ConversationMemoryService;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.*;
@@ -10,6 +11,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.*;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.*;
+import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import java.util.List;
@@ -24,7 +27,10 @@ class StructuredModelServiceTest {
     @BeforeEach void setup() {
         factory=Validation.buildDefaultValidatorFactory();model=mock(ChatModel.class);
         when(model.getOptions()).thenReturn(OllamaChatOptions.builder().build());
-        service=new SpringAiModelService(ChatClient.builder(model),new PromptTemplateRegistry(),factory.getValidator());
+        var memory=MessageWindowChatMemory.builder().chatMemoryRepository(new InMemoryChatMemoryRepository())
+            .maxMessages(ConversationMemoryService.MAX_NON_SYSTEM_MESSAGES).build();
+        service=new SpringAiModelService(ChatClient.builder(model),new PromptTemplateRegistry(),factory.getValidator(),
+            new ConversationMemoryService(memory));
     }
     @AfterEach void close(){factory.close();}
     private org.springframework.ai.chat.model.ChatResponse response(String text) {

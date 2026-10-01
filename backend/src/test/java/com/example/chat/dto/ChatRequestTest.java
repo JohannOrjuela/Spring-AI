@@ -110,5 +110,28 @@ class ChatRequestTest {
         req.setRol("long\n".repeat(2000));req.setDominio(null);req.setIdioma(null);req.setTemplateId(null);
         assertThat(VALIDATOR.validate(req)).isEmpty();
     }
+
+    @Test
+    void sessionIdIsNullableExactAndNonblankWhenPresent() {
+        for (String accepted : List.of("A", "a", " A ", "session-006")) {
+            ChatRequest request = validRequest();
+            request.setSessionId(accepted);
+            assertThat(VALIDATOR.validate(request)).isEmpty();
+            assertThat(request.getSessionId()).isEqualTo(accepted);
+        }
+
+        ChatRequest omitted = validRequest();
+        assertThat(VALIDATOR.validate(omitted)).isEmpty();
+        omitted.setSessionId(null);
+        assertThat(VALIDATOR.validate(omitted)).isEmpty();
+
+        for (String rejected : List.of("", " ", "\t\r\n")) {
+            ChatRequest request = validRequest();
+            request.setSessionId(rejected);
+            assertThat(VALIDATOR.validate(request))
+                    .extracting(violation -> violation.getPropertyPath().toString())
+                    .contains("sessionId");
+        }
+    }
     private record InvalidCase(String field, Consumer<ChatRequest> mutation) {}
 }

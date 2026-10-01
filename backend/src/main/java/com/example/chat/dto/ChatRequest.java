@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public class ChatRequest extends SamplingParameters {
+    @Pattern(regexp = "(?s).*\\S.*", message = "sessionId must not be blank")
     private String sessionId;
 
     @NotBlank(message = "question must be provided")
